@@ -1,0 +1,20 @@
+[
+    {
+      "output": [
+        {
+          "id": "msg_09c1d99461bbfd4d0069b103facecc8197aa871785662fc5eb",
+          "type": "message",
+          "status": "completed",
+          "content": [
+            {
+              "type": "output_text",
+              "annotations": [],
+              "logprobs": [],
+              "text": "```json\n{\n  \"events\": [\n    {\n      \"event_type\": \"CORPORATE CRAVING\",\n      \"event_name\": \"Facings of America Lunch\",\n      \"status\": \"DEFINITE\",\n      \"date\": \"10/15/2023\",\n      \"guest_count\": 50,\n      \"rtg_time\": \"12:00 PM\",\n      \"prepared_by\": \"\",\n      \"menu_items\": [\n        {\n          \"qty_serving\": 2,\n          \"menu_item\": \"GRAPEFRUIT + SUGAR CHARRED SALMON\",\n          \"qty\": 20,\n          \"unit\": \"LBS\",\n          \"notes\": \"COOKED\"\n        },\n        {\n          \"qty_serving\": null,\n          \"menu_item\": \"SALMON\",\n          \"qty\": null,\n          \"unit\": null,\n          \"notes\": null\n        },\n        {\n          \"qty_serving\": 1,\n          \"menu_item\": \"HERBED QUINOA\",\n          \"qty\": 10,\n          \"unit\": \"LBS\",\n          \"notes\": \"PRE CUT\"\n        },\n        {\n          \"qty_serving\": null,\n          \"menu_item\": \"MIXED GREENS DRESSING\",\n          \"qty\": null,\n          \"unit\": null,\n          \"notes\": null\n        }\n      ]\n    },\n    {\n      \"event_type\": \"FULL SERVICE DROP\",\n      \"event_name\": \"DODGERS MAJORS LUNCH\",\n      \"status\": \"TENTATIVE\",\n      \"date\": \"10/20/2023\",\n      \"guest_count\": 30,\n      \"rtg_time\": \"1:30 PM\",\n      \"prepared_by\": \"\",\n      \"menu_items\": [\n        {\n          \"qty_serving\": 1,\n          \"menu_item\": \"BBQ CHICKEN\",\n          \"qty\": 15,\n          \"unit\": \"LBS\",\n          \"notes\": \"COOKED\"\n        },\n        {\n          \"qty_serving\": null,\n          \"menu_item\": \"COLESLAW\",\n          \"qty\": null,\n          \"unit\": null,\n          \"notes\": null\n        }\n      ]\n    }\n  ]\n}\n```"
+            }
+          ],
+          "role": "assistant"
+        }
+      ]
+    }
+  ]

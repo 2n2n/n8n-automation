@@ -1,8 +1,9 @@
-// Utility for n8n Code node: parse JSON wrapped in ```json code fences
+// Utility for n8n Code node: parse events[] JSON and map to KitchenSheet
 
 /**
  * Extracts and parses JSON from a string that may be wrapped in
  * ```json ... ``` code fences (as returned by some LLM tools).
+ * Also handles raw JSON strings with no fences.
  *
  * @param {string} rawText - The raw text containing JSON, possibly fenced.
  * @returns {any} Parsed JSON object.
@@ -22,103 +23,196 @@ function parseJsonFromCodeFence(rawText) {
 }
 
 /**
- * Example n8n Code node entry point.
+ * Returns true if the string looks like dietary tag codes:
+ * short alpha segments joined by "+", e.g. "gf+df", "gf", "df+vg+v".
  *
- * This assumes the incoming item has the structure shown in your example:
+ * @param {string} str
+ * @returns {boolean}
+ */
+function isDietaryTagString(str) {
+  return /^[a-z]{1,4}(\+[a-z]{1,4})*$/i.test((str || "").trim());
+}
+
+/**
+ * Converts a raw menu item (from the events[] format) into a MenuItem.
+ *
+ * The `notes` field may contain:
+ *   - Dietary tags: "gf+df"  → dietaryTags: ["gf","df"], ingredients: [], notes: null
+ *   - Ingredients:  "burger, salmon, chicken" → dietaryTags: [], ingredients: ["burger","salmon","chicken"], notes: null
+ *   - A plain note: "COOKED" → dietaryTags: [], ingredients: [], notes: "COOKED"
+ *
+ * @param {{ qty_serving: number, menu_item: string, qty: number, unit: string|null, notes: string|null }} item
+ * @returns {{ name: string, dietaryTags: string[], ingredients: string[], notes: string|null }}
+ */
+function mapEventItemToMenuItem(item) {
+  const name  = (item.menu_item || "").trim();
+  const raw   = (item.notes     || "").trim();
+
+  let dietaryTags = [];
+  let ingredients = [];
+  let notes       = null;
+
+  if (!raw) {
+    // nothing to parse
+  } else if (isDietaryTagString(raw)) {
+    dietaryTags = raw.split("+").map((t) => t.trim().toLowerCase()).filter(Boolean);
+  } else if (raw.includes(",")) {
+    ingredients = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  } else {
+    notes = raw;
+  }
+
+  return { name, dietaryTags, ingredients, notes };
+}
+
+/**
+ * Groups a flat array of menu items into sections by qty_serving, preserving order.
+ * Items that share the same qty_serving belong to the same section.
+ *
+ * @param {object[]} menuItems
+ * @returns {Map<number, object[]>}
+ */
+function groupBySectionQty(menuItems) {
+  const map = new Map();
+  for (const item of menuItems) {
+    const qty = item.qty_serving ?? 0;
+    if (!map.has(qty)) map.set(qty, []);
+    map.get(qty).push(item);
+  }
+  return map;
+}
+
+/**
+ * Maps a single event object (from the LLM events[] array) to a KitchenSheet.
+ *
+ * Input shape:
  * {
- *   "output": [
+ *   event_type:  "BUFFET",
+ *   event_name:  "DODGERS MAJORS LUNCH",
+ *   status:      "DEFINITE",
+ *   date:        "03/08/2026",
+ *   guest_count: 185,
+ *   rtg_time:    "10:30 AM",
+ *   prepared_by: "",
+ *   menu_items: [
+ *     { qty_serving: 185, menu_item: "OREGANO ROASTED CHICKEN", qty: 0, unit: null, notes: "gf+df" },
+ *     { qty_serving:  60, menu_item: "GRILL ACTION STATION",    qty: 60, unit: "SERVINGS",
+ *       notes: "burger, salmon, chicken, cheese, lettuce, tomato, onion, pickles, buns" }
+ *   ]
+ * }
+ *
+ * Section grouping:
+ *   - The first (largest) qty_serving group uses the event name as the section name.
+ *   - Each subsequent group (different qty_serving) uses the first item's name as the section name
+ *     since these typically represent named stations (e.g. "GRILL ACTION STATION").
+ *
+ * @param {object} event
+ * @returns {object} KitchenSheet-shaped camelCase object
+ */
+function mapEventToKitchenSheet(event) {
+  const sectionMap = groupBySectionQty(event.menu_items || []);
+
+  const sections = [];
+  for (const [qty, items] of sectionMap) {
+    const isFirst    = sections.length === 0;
+    const sectionName = isFirst
+      ? (event.event_name || "").toUpperCase()
+      : (items[0]?.menu_item || "").toUpperCase();
+
+    sections.push({
+      qty,
+      name:  sectionName,
+      items: items.map(mapEventItemToMenuItem),
+    });
+  }
+
+  return {
+    updatedAt:    "",
+    documentType: "KITCHEN SHEET",
+    eventName:    event.event_name || "",
+    eventDate:    event.date       || "",
+
+    account: {
+      account:        "",
+      accountManager: "",
+      location:       null,
+      phone:          null,
+      bookingContact: "",
+      bookingPhone:   "",
+      siteContact:    null,
+      sitePhone:      null,
+    },
+
+    cateringKitchen: {
+      date:      event.date       || "",
+      setupType: event.event_type || "",
+      eventType: "",
+      guests:    event.guest_count ?? 0,
+    },
+
+    operations: {
+      date:             event.date     || "",
+      offsiteLocation:  "",
+      offsiteAddress:   "",
+      serviceStartTime: "",
+      serviceEndTime:   "",
+      arrivalTime:      event.rtg_time || "",
+      instructions:     "",
+    },
+
+    menu: {
+      date:         event.date     || "",
+      serviceStart: "",
+      serviceEnd:   "",
+      lkbTime:      event.rtg_time || "",
+      sections,
+    },
+
+    dietaryRequirements: {
+      portionSizes: { protein: "", starch: "", vegetables: "" },
+      specialMeals: [],
+    },
+  };
+}
+
+/**
+ * n8n Code node entry point.
+ *
+ * Reads JSON (raw or code-fenced) from:
+ *   $input.first().json.output[0].content[0].text
+ *
+ * Expected LLM output shape:
+ * {
+ *   "events": [
  *     {
- *       "content": [
- *         {
- *           "text": "```json\n{ \"events\": [ ... ] }\n```"
- *         }
- *       ]
+ *       "event_type": "BUFFET",
+ *       "event_name": "DODGERS MAJORS LUNCH",
+ *       "date": "03/08/2026",
+ *       "guest_count": 185,
+ *       "rtg_time": "10:30 AM",
+ *       "menu_items": [ ... ]
  *     }
  *   ]
  * }
+ *
+ * Returns one n8n item per event: { filename, kitchenSheet: KitchenSheet }
  */
 function main() {
-  const raw = $input.first().json.output[0].content[0].text;
+  const inputJson = $input.first().json;
+  const filename  = inputJson.filename || "";
 
+  const raw    = inputJson.output[0].content[0].text;
   const parsed = parseJsonFromCodeFence(raw);
-  const allSheets = [];
 
-  for (const event of parsed.events || []) {
-    const rows = [];
+  const items = (parsed.events || []).map((event) => ({
+    json: {
+      filename,
+      kitchenSheet: mapEventToKitchenSheet(event),
+    },
+  }));
 
-    // Row 1: Event type + Date
-    rows.push({
-      A: event.event_type || "",
-      B: "",
-      C: event.date || "",
-      D: "",
-      E: "",
-      F: "",
-    });
-
-    // Row 2: THE HERB BOX CATERING + Event Name + Status
-    rows.push({
-      A: "THE HERB BOX CATERING",
-      B: "",
-      C: event.event_name || "",
-      D: "",
-      E: "STATUS",
-      F: event.status || "",
-    });
-
-    // Row 3: QUANTITY SERVING + Guest Count + RTG
-    rows.push({
-      A: "QUANTITY SERVING",
-      B: "",
-      C: String(event.guest_count ?? ""),
-      D: "RTG:",
-      E: "",
-      F: event.rtg_time || "",
-    });
-
-    // Row 4: Column headers
-    rows.push({
-      A: "PREPARED BY",
-      B: "QTY",
-      C: "MENU ITEM",
-      D: "QTY",
-      E: "UNIT",
-      F: "NOTES",
-    });
-
-    // Rows 5+: Menu items
-    for (const item of event.menu_items || []) {
-      rows.push({
-        A: "",
-        B: item.qty_serving != null ? String(item.qty_serving) : "",
-        C: item.menu_item || "",
-        D: item.qty != null ? String(item.qty) : "",
-        E: item.unit || "",
-        F: item.notes || "",
-      });
-    }
-
-    allSheets.push({
-      sheetName: `${event.event_name || ""} - ${event.date || ""}`,
-      rows,
-    });
-  }
-
-  // Flatten: emit each row with its sheet name
-  const output = [];
-  for (const sheet of allSheets) {
-    for (const row of sheet.rows) {
-      output.push({ json: { ...row, _sheetName: sheet.sheetName } });
-    }
-  }
-
-  return output;
+  return items.length ? items : [{ json: { filename, kitchenSheet: null } }];
 }
-
-// In n8n workflow wiring:
-// - Connect THIS node's output directly to "Google Sheets — Append Rows".
-// - Do NOT connect the "sheet list" (spreadsheetId, sheetId, title, ...) to Append Rows,
-//   or $json._sheetName will be undefined. Append Rows must receive these row items.
 
 // In an n8n Code node you would typically just `return main();`
 return main();
