@@ -1,4 +1,5 @@
-// Utility for n8n Code node: parse events[] JSON and map to KitchenSheet
+// Utility for n8n Code node: parse an events[] JSON array and map each event to a KitchenSheet.
+// For AI nodes that output KitchenSheetPDF format, use parseKitchenSheetPDF.js instead.
 
 /**
  * Extracts and parses JSON from a string that may be wrapped in
@@ -23,154 +24,152 @@ function parseJsonFromCodeFence(rawText) {
 }
 
 /**
- * Returns true if the string looks like dietary tag codes:
- * short alpha segments joined by "+", e.g. "gf+df", "gf", "df+vg+v".
+ * Extracts dietary tags from a title that contains "(gf+df)" style annotations,
+ * e.g. "OREGANO ROASTED CHICKEN (gf+df)" → name: "OREGANO ROASTED CHICKEN", dietaryTags: ["gf","df"].
+ * If the parenthetical content is not a dietary tag string it is left in the name.
  *
- * @param {string} str
- * @returns {boolean}
+ * @param {string} title
+ * @returns {{ name: string, dietaryTags: string[] }}
  */
-function isDietaryTagString(str) {
-  return /^[a-z]{1,4}(\+[a-z]{1,4})*$/i.test((str || "").trim());
-}
-
-/**
- * Converts a raw menu item (from the events[] format) into a MenuItem.
- *
- * The `notes` field may contain:
- *   - Dietary tags: "gf+df"  → dietaryTags: ["gf","df"], ingredients: [], notes: null
- *   - Ingredients:  "burger, salmon, chicken" → dietaryTags: [], ingredients: ["burger","salmon","chicken"], notes: null
- *   - A plain note: "COOKED" → dietaryTags: [], ingredients: [], notes: "COOKED"
- *
- * @param {{ qty_serving: number, menu_item: string, qty: number, unit: string|null, notes: string|null }} item
- * @returns {{ name: string, dietaryTags: string[], ingredients: string[], notes: string|null }}
- */
-function mapEventItemToMenuItem(item) {
-  const name  = (item.menu_item || "").trim();
-  const raw   = (item.notes     || "").trim();
-
-  let dietaryTags = [];
-  let ingredients = [];
-  let notes       = null;
-
-  if (!raw) {
-    // nothing to parse
-  } else if (isDietaryTagString(raw)) {
-    dietaryTags = raw.split("+").map((t) => t.trim().toLowerCase()).filter(Boolean);
-  } else if (raw.includes(",")) {
-    ingredients = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  } else {
-    notes = raw;
+function extractDietaryTagsFromTitle(title) {
+  const match = (title || "").match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (match) {
+    const rawTags = match[2].trim();
+    if (/^[a-z]{1,4}(\+[a-z]{1,4})*$/i.test(rawTags)) {
+      return {
+        name: match[1].trim(),
+        dietaryTags: rawTags
+          .split("+")
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean),
+      };
+    }
   }
-
-  return { name, dietaryTags, ingredients, notes };
+  return { name: (title || "").trim(), dietaryTags: [] };
 }
 
 /**
- * Groups a flat array of menu items into sections by qty_serving, preserving order.
- * Items that share the same qty_serving belong to the same section.
+ * Maps a single menu item from the sample.json / KitchenSheetPDF sections format to a MenuItem.
  *
- * @param {object[]} menuItems
- * @returns {Map<number, object[]>}
+ * Input shape:
+ * { quantity: 185, title: "OREGANO ROASTED CHICKEN (gf+df)", ingredients: "caramelized lemon, fresh oregano" }
+ *
+ * @param {{ quantity: number, title: string, ingredients: string }} item
+ * @returns {{ name: string, dietaryTags: string[], ingredients: string[], notes: null }}
  */
-function groupBySectionQty(menuItems) {
-  const map = new Map();
-  for (const item of menuItems) {
-    const qty = item.qty_serving ?? 0;
-    if (!map.has(qty)) map.set(qty, []);
-    map.get(qty).push(item);
-  }
-  return map;
+function mapSampleItemToMenuItem(item) {
+  const { name, dietaryTags } = extractDietaryTagsFromTitle(item.title);
+  const raw = (item.ingredients || "").trim();
+  const ingredients = raw
+    ? raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  return { name, dietaryTags, ingredients, notes: null };
 }
 
 /**
- * Maps a single event object (from the LLM events[] array) to a KitchenSheet.
+ * Maps a single special meal object to camelCase.
+ *
+ * @param {object} meal
+ * @returns {object}
+ */
+function mapSpecialMeal(meal) {
+  return {
+    qty: meal.qty,
+    type: meal.type,
+    recipientName: meal.recipient_name ?? null,
+    restrictions: meal.restrictions || [],
+    description: meal.description ?? null,
+    deliveryTime: meal.delivery_time ?? null,
+    deliveredBy: meal.delivered_by ?? null,
+    servedHot: meal.served_hot ?? null,
+    packaging: meal.packaging ?? null,
+  };
+}
+
+/**
+ * Maps a single event object (sample.json format) to a KitchenSheet.
  *
  * Input shape:
  * {
- *   event_type:  "BUFFET",
- *   event_name:  "DODGERS MAJORS LUNCH",
- *   status:      "DEFINITE",
- *   date:        "03/08/2026",
- *   guest_count: 185,
- *   rtg_time:    "10:30 AM",
- *   prepared_by: "",
- *   menu_items: [
- *     { qty_serving: 185, menu_item: "OREGANO ROASTED CHICKEN", qty: 0, unit: null, notes: "gf+df" },
- *     { qty_serving:  60, menu_item: "GRILL ACTION STATION",    qty: 60, unit: "SERVINGS",
- *       notes: "burger, salmon, chicken, cheese, lettuce, tomato, onion, pickles, buns" }
- *   ]
+ *   updated_at:      "2/18/2026 2:01 pm",
+ *   document_type:   "KITCHEN SHEET",
+ *   event_name:      "DODGERS MAJORS LUNCH",
+ *   event_date:      "Sun, Mar 8, 2026",
+ *   account:         { account, account_manager, location, phone, booking_contact, booking_phone, site_contact, site_phone },
+ *   catering_kitchen:{ date, setup_type, event_type, guests },
+ *   operations:      { date, offsite_location, offsite_address, service_start_time, service_end_time, arrival_time, instructions },
+ *   menu:            { date, service_start, service_end, lkb_time, sections: [{ qty, name, items: [{ quantity, title, ingredients }] }] },
+ *   dietary_requirements: {
+ *     portion_sizes: { protein, starch, vegetables },
+ *     special_meals: [{ qty, type, recipient_name, restrictions, description, delivery_time, delivered_by, served_hot, packaging }]
+ *   }
  * }
- *
- * Section grouping:
- *   - The first (largest) qty_serving group uses the event name as the section name.
- *   - Each subsequent group (different qty_serving) uses the first item's name as the section name
- *     since these typically represent named stations (e.g. "GRILL ACTION STATION").
  *
  * @param {object} event
  * @returns {object} KitchenSheet-shaped camelCase object
  */
 function mapEventToKitchenSheet(event) {
-  const sectionMap = groupBySectionQty(event.menu_items || []);
-
-  const sections = [];
-  for (const [qty, items] of sectionMap) {
-    const isFirst    = sections.length === 0;
-    const sectionName = isFirst
-      ? (event.event_name || "").toUpperCase()
-      : (items[0]?.menu_item || "").toUpperCase();
-
-    sections.push({
-      qty,
-      name:  sectionName,
-      items: items.map(mapEventItemToMenuItem),
-    });
-  }
+  const sections = (event.menu?.sections || []).map((section) => ({
+    qty: section.qty,
+    name: section.name,
+    items: (section.items || []).map(mapSampleItemToMenuItem),
+  }));
 
   return {
-    updatedAt:    "",
-    documentType: "KITCHEN SHEET",
-    eventName:    event.event_name || "",
-    eventDate:    event.date       || "",
+    updatedAt: event.updated_at || "",
+    documentType: event.document_type || "KITCHEN SHEET",
+    eventName: event.event_name || "",
+    eventDate: event.event_date || "",
 
     account: {
-      account:        "",
-      accountManager: "",
-      location:       null,
-      phone:          null,
-      bookingContact: "",
-      bookingPhone:   "",
-      siteContact:    null,
-      sitePhone:      null,
+      account: event.account?.account ?? null,
+      accountManager: event.account?.account_manager ?? null,
+      location: event.account?.location ?? null,
+      phone: event.account?.phone ?? null,
+      bookingContact: event.account?.booking_contact ?? null,
+      bookingPhone: event.account?.booking_phone ?? null,
+      siteContact: event.account?.site_contact ?? null,
+      sitePhone: event.account?.site_phone ?? null,
     },
 
     cateringKitchen: {
-      date:      event.date       || "",
-      setupType: event.event_type || "",
-      eventType: "",
-      guests:    event.guest_count ?? 0,
+      date: event.catering_kitchen?.date || "",
+      setupType: event.catering_kitchen?.setup_type || "",
+      eventType: event.catering_kitchen?.event_type || "",
+      guests: event.catering_kitchen?.guests ?? 0,
     },
 
     operations: {
-      date:             event.date     || "",
-      offsiteLocation:  "",
-      offsiteAddress:   "",
-      serviceStartTime: "",
-      serviceEndTime:   "",
-      arrivalTime:      event.rtg_time || "",
-      instructions:     "",
+      date: event.operations?.date || "",
+      offsiteLocation: event.operations?.offsite_location ?? null,
+      offsiteAddress: event.operations?.offsite_address ?? null,
+      serviceStartTime: event.operations?.service_start_time ?? null,
+      serviceEndTime: event.operations?.service_end_time ?? null,
+      arrivalTime: event.operations?.arrival_time ?? null,
+      instructions: event.operations?.instructions ?? null,
     },
 
     menu: {
-      date:         event.date     || "",
-      serviceStart: "",
-      serviceEnd:   "",
-      lkbTime:      event.rtg_time || "",
+      date: event.menu?.date || "",
+      serviceStart: event.menu?.service_start ?? null,
+      serviceEnd: event.menu?.service_end ?? null,
+      lkbTime: event.menu?.lkb_time || "",
       sections,
     },
 
     dietaryRequirements: {
-      portionSizes: { protein: "", starch: "", vegetables: "" },
-      specialMeals: [],
+      portionSizes: {
+        protein: event.dietary_requirements?.portion_sizes?.protein ?? null,
+        starch: event.dietary_requirements?.portion_sizes?.starch ?? null,
+        vegetables:
+          event.dietary_requirements?.portion_sizes?.vegetables ?? null,
+      },
+      specialMeals: (event.dietary_requirements?.special_meals || []).map(
+        mapSpecialMeal,
+      ),
     },
   };
 }
@@ -181,37 +180,32 @@ function mapEventToKitchenSheet(event) {
  * Reads JSON (raw or code-fenced) from:
  *   $input.first().json.output[0].content[0].text
  *
- * Expected LLM output shape:
- * {
- *   "events": [
- *     {
- *       "event_type": "BUFFET",
- *       "event_name": "DODGERS MAJORS LUNCH",
- *       "date": "03/08/2026",
- *       "guest_count": 185,
- *       "rtg_time": "10:30 AM",
- *       "menu_items": [ ... ]
- *     }
- *   ]
- * }
+ * Expected LLM output shape — an array of events matching the sample.json format:
+ * [
+ *   {
+ *     "updated_at": "2/18/2026 2:01 pm",
+ *     "document_type": "KITCHEN SHEET",
+ *     "event_name": "DODGERS MAJORS LUNCH",
+ *     "event_date": "Sun, Mar 8, 2026",
+ *     "account": { ... },
+ *     "catering_kitchen": { "date", "setup_type", "event_type", "guests" },
+ *     "operations": { ... },
+ *     "menu": { "date", "service_start", "service_end", "lkb_time", "sections": [ ... ] },
+ *     "dietary_requirements": { "portion_sizes": { ... }, "special_meals": [ ... ] }
+ *   }
+ * ]
  *
- * Returns one n8n item per event: { filename, kitchenSheet: KitchenSheet }
+ * Returns one n8n item per event: { kitchenSheet: KitchenSheet }
  */
 function main() {
-  const inputJson = $input.first().json;
-  const filename  = inputJson.filename || "";
-
-  const raw    = inputJson.output[0].content[0].text;
-  const parsed = parseJsonFromCodeFence(raw);
-
-  const items = (parsed.events || []).map((event) => ({
+  const input = $input.all();
+  const items = (input || []).map((event) => ({
     json: {
-      filename,
-      kitchenSheet: mapEventToKitchenSheet(event),
+      kitchenSheet: mapEventToKitchenSheet(event.json),
     },
   }));
 
-  return items.length ? items : [{ json: { filename, kitchenSheet: null } }];
+  return items.length ? items : [{ json: { kitchenSheet: null } }];
 }
 
 // In an n8n Code node you would typically just `return main();`

@@ -1,20 +1,138 @@
 [
-    {
-      "output": [
+  {
+    "updated_at": "2/18/2026 2:01 pm",
+    "document_type": "KITCHEN SHEET",
+    "event_name": "DODGERS MAJORS LUNCH",
+    "event_date": "Sun, Mar 8, 2026",
+    "account": {
+      "account": "Los Angeles Dodgers : Majors",
+      "account_manager": "Cindy Bynum",
+      "location": null,
+      "phone": "+14808782582",
+      "booking_contact": "Tyrone Hall",
+      "booking_phone": "+14013161652",
+      "site_contact": null,
+      "site_phone": null
+    },
+    "catering_kitchen": {
+      "date": "3/8/2026",
+      "setup_type": "Buffet Style",
+      "event_type": "Lunch",
+      "guests": 185
+    },
+    "operations": {
+      "date": "3/8/2026",
+      "offsite_location": "Camelback Ranch",
+      "offsite_address": "10710 W Camelback Rd, Phoenix, AZ",
+      "service_start_time": "11:00 AM",
+      "service_end_time": "3:00 PM",
+      "arrival_time": null,
+      "instructions": "Meals delivered to MAJORS, billed to MAJORS."
+    },
+    "menu": {
+      "date": "Sunday, March 8, 2026",
+      "service_start": "11:00 AM",
+      "service_end": "3:00 PM",
+      "lkb_time": "10:30 AM",
+      "sections": [
         {
-          "id": "msg_09c1d99461bbfd4d0069b103facecc8197aa871785662fc5eb",
-          "type": "message",
-          "status": "completed",
-          "content": [
+          "qty": 185,
+          "name": "DODGERS LUNCH BUFFET",
+          "items": [
             {
-              "type": "output_text",
-              "annotations": [],
-              "logprobs": [],
-              "text": "```json\n{\n  \"events\": [\n    {\n      \"event_type\": \"CORPORATE CRAVING\",\n      \"event_name\": \"Facings of America Lunch\",\n      \"status\": \"DEFINITE\",\n      \"date\": \"10/15/2023\",\n      \"guest_count\": 50,\n      \"rtg_time\": \"12:00 PM\",\n      \"prepared_by\": \"\",\n      \"menu_items\": [\n        {\n          \"qty_serving\": 2,\n          \"menu_item\": \"GRAPEFRUIT + SUGAR CHARRED SALMON\",\n          \"qty\": 20,\n          \"unit\": \"LBS\",\n          \"notes\": \"COOKED\"\n        },\n        {\n          \"qty_serving\": null,\n          \"menu_item\": \"SALMON\",\n          \"qty\": null,\n          \"unit\": null,\n          \"notes\": null\n        },\n        {\n          \"qty_serving\": 1,\n          \"menu_item\": \"HERBED QUINOA\",\n          \"qty\": 10,\n          \"unit\": \"LBS\",\n          \"notes\": \"PRE CUT\"\n        },\n        {\n          \"qty_serving\": null,\n          \"menu_item\": \"MIXED GREENS DRESSING\",\n          \"qty\": null,\n          \"unit\": null,\n          \"notes\": null\n        }\n      ]\n    },\n    {\n      \"event_type\": \"FULL SERVICE DROP\",\n      \"event_name\": \"DODGERS MAJORS LUNCH\",\n      \"status\": \"TENTATIVE\",\n      \"date\": \"10/20/2023\",\n      \"guest_count\": 30,\n      \"rtg_time\": \"1:30 PM\",\n      \"prepared_by\": \"\",\n      \"menu_items\": [\n        {\n          \"qty_serving\": 1,\n          \"menu_item\": \"BBQ CHICKEN\",\n          \"qty\": 15,\n          \"unit\": \"LBS\",\n          \"notes\": \"COOKED\"\n        },\n        {\n          \"qty_serving\": null,\n          \"menu_item\": \"COLESLAW\",\n          \"qty\": null,\n          \"unit\": null,\n          \"notes\": null\n        }\n      ]\n    }\n  ]\n}\n```"
+              "quantity": 185,
+              "title": "OREGANO ROASTED CHICKEN (gf+df)",
+              "ingredients": "caramelized lemon, fresh oregano"
+            },
+            {
+              "quantity": 185,
+              "title": "FRESH HERB ROASTED SALMON (gf+df)",
+              "ingredients": ""
+            },
+            {
+              "quantity": 185,
+              "title": "HERB WILD RICE (gf+df)",
+              "ingredients": ""
+            },
+            {
+              "quantity": 185,
+              "title": "MIXED ROASTED POTATOES (gf+df)",
+              "ingredients": "peewee colored potatoes, fresh rosemary, thyme & sage"
+            },
+            {
+              "quantity": 185,
+              "title": "ROASTED ASPARAGUS (gf+df)",
+              "ingredients": ""
+            },
+            {
+              "quantity": 185,
+              "title": "SOUTHWEST SALAD BAR",
+              "ingredients": "corn, black beans, pickled red onion, cherry tomatoes, shredded carrots, organic spring mix, shredded cheese, jalapeno-avocado vinaigrette, chipotle-parmesan vinaigrette"
+            },
+            {
+              "quantity": 185,
+              "title": "GROCERY ITEMS",
+              "ingredients": "CORN,CHERRY TOMATOES, SHREDDED CARROTS"
+            },
+            {
+              "quantity": 185,
+              "title": "KITCHEN TO PRODUCE",
+              "ingredients": "BLACK BEANS, PICKELED RED ONION AND ALL DRESSINGS"
+            },
+            {
+              "quantity": 60,
+              "title": "GRILL ACTION STATION",
+              "ingredients": "burger, salmon, chicken, cheese, lettuce, tomato, onion, pickles, buns"
             }
+          ]
+        }
+      ]
+    },
+    "dietary_requirements": {
+      "portion_sizes": {
+        "protein": "8oz post-cook",
+        "starch": "1 cup",
+        "vegetables": "1 cup"
+      },
+      "special_meals": [
+        {
+          "qty": 2,
+          "type": "WHOLE 30",
+          "recipient_name": null,
+          "restrictions": [],
+          "description": "3c mixd greens + cucumber, 1/2c cooked lentils, 1T olive oil + vinegar (on side in pc), 1/2 avocado, 4oz grilled salmon",
+          "delivery_time": null,
+          "delivered_by": null,
+          "served_hot": true,
+          "packaging": null
+        },
+        {
+          "qty": 1,
+          "type": "SPECIALTY",
+          "recipient_name": "Dino Ebel",
+          "restrictions": [
+            "Low Sodium",
+            "no red meat",
+            "dairy-free"
           ],
-          "role": "assistant"
+          "description": "needs plain, unseasoned chicken or fish",
+          "delivery_time": "10:45 AM",
+          "delivered_by": null,
+          "served_hot": false,
+          "packaging": "togo box"
+        },
+        {
+          "qty": 1,
+          "type": "CONCIERGE",
+          "recipient_name": null,
+          "restrictions": [],
+          "description": "JAPANESE MEALS",
+          "delivery_time": "10:45 AM",
+          "delivered_by": "ABRAHAM",
+          "served_hot": false,
+          "packaging": null
         }
       ]
     }
-  ]
+  }
+]
