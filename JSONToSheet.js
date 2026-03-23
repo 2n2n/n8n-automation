@@ -65,15 +65,25 @@ function main() {
   // Build a 2D values array — each inner array is one row, values are positional:
   //   index 0 → column B (QTY)
   //   index 1 → column C (MENU ITEM)
-  const values = sections.map((section) => [
-    section?.qty ?? "",
-    section?.name ?? "",
-  ]);
+  const values = [];
+
+  sections.forEach((section) => {
+    let row = [section?.qty ?? "", section?.name ?? ""];
+    values.push(row);
+
+    section.items.forEach((item) => {
+      values.push(["", item.name ?? ""]);
+      const ingredients = item.ingredients ?? [];
+      ingredients.forEach((ingredient) => {
+        values.push(["", "- " + (ingredient ?? "")]);
+      });
+    });
+  });
 
   return [
     {
       json: {
-        range: START_CELL,
+        range: RANGE,
         majorDimension: "ROWS",
         values,
       },
