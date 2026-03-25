@@ -1,0 +1,332 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1FWFpvt1MKvcGDdWO4b2yI1-_RgRl9-l0",
+          "mode": "id"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -256
+      ],
+      "id": "20da4649-5103-464b-a17b-314f2a48455a",
+      "name": "Google Drive Trigger",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "notesInFlow": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "mNW7XkkaMibw62NX",
+          "name": "Google Drive account"
+        }
+      },
+      "notes": "Check for uploaded pdf files."
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        -256
+      ],
+      "id": "61fadab0-cfa9-4430-bdc0-76ba3b70b51c",
+      "name": "Extract from File",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a data extraction assistant. You parse kitchen sheet PDFs into structured JSON that matches the KitchenSheetPDF TypeScript type exactly. Return ONLY a valid JSON object — no explanation, no markdown, no code fences.\n\nTYPE DEFINITION  (kitchenSheet.types.ts)\n// Root type you must produce:\ninterface KitchenSheetPDF extends Omit<KitchenSheet, \"menu\"> {\n  menu: MenuPDF;\n}\n\ninterface KitchenSheet {\n  updatedAt: string;               // e.g. \"2/18/2026 2:01 pm\"\n  documentType: \"KITCHEN SHEET\";\n  eventName: string;\n  eventDate: string;               // e.g. \"Sun, Mar 8, 2026\"\n  account: AccountInfo;\n  cateringKitchen: CateringKitchenInfo;\n  operations: OperationsInfo;\n  dietaryRequirements: DietaryRequirements;\n}\n\ninterface AccountInfo {\n  account: string;\n  accountManager: string;\n  location: string | null;\n  phone: string | null;\n  bookingContact: string;\n  bookingPhone: string;\n  siteContact: string | null;\n  sitePhone: string | null;\n}\n\ninterface CateringKitchenInfo {\n  date: string;\n  setupType: \"Buffet Style\" | \"Plated\" | \"Family Style\" | string;\n  eventType: \"Lunch\" | \"Dinner\" | \"Breakfast\" | \"Snack\" | string;\n  guests: number;\n}\n\ninterface OperationsInfo {\n  date: string;\n  offsiteLocation: string;\n  offsiteAddress: string;\n  serviceStartTime: string;        // e.g. \"11:00 AM\"\n  serviceEndTime: string;          // e.g. \"3:00 PM\"\n  arrivalTime: string;\n  instructions: string;\n}\n\ninterface MenuSectionPDFItem {\n  quantity: number;                // Number of servings for this item (usually matches section qty)\n  title: string;                   // Item name with dietary tags, e.g. \"OREGANO ROASTED CHICKEN (gf+df)\"\n  ingredients: string;             // Ingredients line below the title. Empty string if none.\n}\n\ninterface MenuSectionPDF {\n  qty: number;                     // Section-level guest/serving count\n  name: string;                    // Section name, e.g. \"DODGERS LUNCH BUFFET\"\n  items: MenuSectionPDFItem[];\n}\n\ninterface MenuPDF {\n  date: string;\n  serviceStart: string;\n  serviceEnd: string;\n  lkbTime: string;                 // Last Kitchen Briefing time\n  sections: MenuSectionPDF[];      // One structured object per section block\n}\n\ninterface DietaryRequirements {\n  portionSizes: PortionSizes;\n  specialMeals: SpecialMeal[];\n}\n\ninterface PortionSizes {\n  protein: string;                 // e.g. \"8oz post-cook\"\n  starch: string;                  // e.g. \"1 cup\"\n  vegetables: string;\n}\n\ninterface SpecialMeal {\n  qty: number;\n  type: \"WHOLE 30\" | \"SPECIALTY\" | \"CONCIERGE\" | string;\n  recipientName: string | null;\n  restrictions: string[];\n  description: string;\n  deliveryTime: string | null;\n  deliveredBy: string | null;\n  servedHot: boolean;\n  packaging: \"togo box\" | \"plate\" | null;\n}\n\nJSON KEY MAPPING  (TypeScript → JSON output)\nOutput keys use snake_case. Mapping from the TypeScript type:\n  updatedAt           → \"updated_at\"\n  documentType        → \"document_type\"\n  eventName           → \"event_name\"\n  eventDate           → \"event_date\"\n  accountManager      → \"account_manager\"\n  bookingContact      → \"booking_contact\"\n  bookingPhone        → \"booking_phone\"\n  siteContact         → \"site_contact\"\n  sitePhone           → \"site_phone\"\n  cateringKitchen     → \"catering_kitchen\"\n  setupType           → \"setup_type\"\n  eventType           → \"event_type\"\n  offsiteLocation     → \"offsite_location\"\n  offsiteAddress      → \"offsite_address\"\n  serviceStartTime    → \"service_start_time\"\n  serviceEndTime      → \"service_end_time\"\n  arrivalTime         → \"arrival_time\"\n  serviceStart        → \"service_start\"\n  serviceEnd          → \"service_end\"\n  lkbTime             → \"lkb_time\"\n  dietaryRequirements → \"dietary_requirements\"\n  portionSizes        → \"portion_sizes\"\n  specialMeals        → \"special_meals\"\n  recipientName       → \"recipient_name\"\n  deliveryTime        → \"delivery_time\"\n  deliveredBy         → \"delivered_by\"\n  servedHot           → \"served_hot\"\n\nSECTION OBJECT FORMAT\nEach entry in menu.sections is a structured object with qty, name, and items[].\n  qty   — the number that precedes the section name in the PDF (e.g. 185)\n  name  — the section name in UPPERCASE (e.g. \"DODGERS LUNCH BUFFET\")\n  items — array of MenuSectionPDFItem objects, one per menu item line:\n            - quantity:    same as the section qty\n            - title:       item name with dietary tags in parentheses joined by \"+\"\n                           Always UPPERCASE. e.g. \"OREGANO ROASTED CHICKEN (gf+df)\"\n            - ingredients: the line directly below the item name in the PDF, comma-separated.\n                           Use \"\" (empty string) if no ingredients line follows.\n\nRULES\n1. menu.sections is an array of structured objects — one object per section block. Each has qty, name, and items[].\n2. Each section object's qty is the number before the section name in the PDF; name is the section title in UPPERCASE.\n3. Each item in items[] uses MenuSectionPDFItem shape:\n   - quantity:    same as the parent section's qty.\n   - title:       item name always UPPERCASE, with dietary tags in parentheses joined by \"+\", e.g. \"SALMON (gf+df)\".\n   - ingredients: the line directly below the item name in the PDF. Use \"\" if no ingredients line is present.\n4. Use null for any field that is empty or not present in the document.\n5. Dates must be copied exactly as they appear in the PDF — do not reformat.\n6. Times must be in 12-hour format with AM/PM (e.g. \"11:00 AM\", \"3:00 PM\").\n7. Phone numbers must include the country code prefix (e.g. \"+14808782582\").\n8. portion_sizes values should include quantity + unit (e.g. \"8oz post-cook\", \"1 cup\").\n9. Return ONLY the JSON object. No explanation, no markdown, no code fences.\n\nEXAMPLE 1 — Full kitchen sheet with buffet, grill station, special meals\nINPUT:\n  Updated: 2/18/2026 2:01 pm\n  KITCHEN SHEET\n  DODGERS MAJORS LUNCH  Sun, Mar 8, 2026\n  ACCOUNT: Los Angeles Dodgers : Majors   ACCOUNT MANAGER: Cindy Bynum\n  BOOKING CONTACT: Tyrone Hall            BOOKING PHONE: +14013161652\n  PHONE: +14808782582\n  ---\n  Date: 3/8/2026  Setup: Buffet Style  Event: Lunch  Guests: 185\n  ---\n  Offsite: Camelback Ranch  Address: 10710 W Camelback Rd, Phoenix, AZ\n  Service: 11:00 AM – 3:00 PM   Arrival: 10:30 AM\n  Instructions: Meals delivered to MAJORS, billed to MAJORS.\n  ---\n  MENU  Sunday, March 8, 2026  11:00 AM–3:00 PM  LKB: 10:30 AM\n  185  DODGERS LUNCH BUFFET\n\n    OREGANO ROASTED CHICKEN (gf+df)  \n    caramelized lemon, fresh oregano\n    \n    FRESH HERB ROASTED SALMON (gf+df)\n    HERB WILD RICE (gf+df)\n    \n    MIXED ROASTED POTATOES (gf+df)  \n    peewee colored potatoes, fresh rosemary, thyme & sage\n    \n    ROASTED ASPARAGUS (gf+df)\n  \n  60  GRILL ACTION STATION\n    burger, salmon, chicken, cheese, lettuce, tomato, onion, pickles, buns\n  ---\n  DIETARY REQUIREMENTS\n\n  8OZ POST-COOK PROTEIN / 1 CUP STARCH / 1 CUP VEGETABLES\n  2  WHOLE 30 MEAL  (on site kitchen to produce)\n    3c mixed greens + cucumber, 1/2c cooked lentils, 1T olive oil + vinegar, 1/2 avocado, 4oz grilled salmon | sent HOT\n\n  1  SPECIALTY MEAL  Dino Ebel – Low Sodium, no red meat, dairy-free\n    plain unseasoned chicken or fish | server to place in togo box at 10:45 marked Dino\n\n  1  CONCIERGE - JAPANESE MEALS  delivered at 10:45am by ABRAHAM\n\nOUTPUT:\n{\n  \"updated_at\": \"2/18/2026 2:01 pm\",\n  \"document_type\": \"KITCHEN SHEET\",\n  \"event_name\": \"DODGERS MAJORS LUNCH\",\n  \"event_date\": \"Sun, Mar 8, 2026\",\n  \"account\": {\n    \"account\": \"Los Angeles Dodgers : Majors\",\n    \"account_manager\": \"Cindy Bynum\",\n    \"location\": null,\n    \"phone\": \"+14808782582\",\n    \"booking_contact\": \"Tyrone Hall\",\n    \"booking_phone\": \"+14013161652\",\n    \"site_contact\": null,\n    \"site_phone\": null\n  },\n  \"catering_kitchen\": {\n    \"date\": \"3/8/2026\",\n    \"setup_type\": \"Buffet Style\",\n    \"event_type\": \"Lunch\",\n    \"guests\": 185\n  },\n  \"operations\": {\n    \"date\": \"3/8/2026\",\n    \"offsite_location\": \"Camelback Ranch\",\n    \"offsite_address\": \"10710 W Camelback Rd, Phoenix, AZ\",\n    \"service_start_time\": \"11:00 AM\",\n    \"service_end_time\": \"3:00 PM\",\n    \"arrival_time\": \"10:30 AM\",\n    \"instructions\": \"Meals delivered to MAJORS, billed to MAJORS.\"\n  },\n  \"menu\": {\n    \"date\": \"Sunday, March 8, 2026\",\n    \"service_start\": \"11:00 AM\",\n    \"service_end\": \"3:00 PM\",\n    \"lkb_time\": \"10:30 AM\",\n    \"sections\": [\n      {\n        \"qty\": 185,\n        \"name\": \"DODGERS LUNCH BUFFET\",\n        \"items\": [\n          { \"quantity\": 185, \"title\": \"OREGANO ROASTED CHICKEN (gf+df)\", \"ingredients\": \"caramelized lemon, fresh oregano\" },\n          { \"quantity\": 185, \"title\": \"FRESH HERB ROASTED SALMON (gf+df)\", \"ingredients\": \"\" },\n          { \"quantity\": 185, \"title\": \"HERB WILD RICE (gf+df)\", \"ingredients\": \"\" },\n          { \"quantity\": 185, \"title\": \"MIXED ROASTED POTATOES (gf+df)\", \"ingredients\": \"peewee colored potatoes, fresh rosemary, thyme & sage\" },\n          { \"quantity\": 185, \"title\": \"ROASTED ASPARAGUS (gf+df)\", \"ingredients\": \"\" }\n        ]\n      },\n      {\n        \"qty\": 60,\n        \"name\": \"GRILL ACTION STATION\",\n        \"items\": [\n          { \"quantity\": 60, \"title\": \"GRILL ACTION STATION\", \"ingredients\": \"burger, salmon, chicken, cheese, lettuce, tomato, onion, pickles, buns\" }\n        ]\n      }\n    ]\n  },\n  \"dietary_requirements\": {\n    \"portion_sizes\": {\n      \"protein\": \"8oz post-cook\",\n      \"starch\": \"1 cup\",\n      \"vegetables\": \"1 cup\"\n    },\n    \"special_meals\": [\n      {\n        \"qty\": 2,\n        \"type\": \"WHOLE 30\",\n        \"recipient_name\": null,\n        \"restrictions\": [],\n        \"description\": \"3c mixed greens + cucumber, 1/2c cooked lentils, 1T olive oil + vinegar, 1/2 avocado, 4oz grilled salmon\",\n        \"delivery_time\": null,\n        \"delivered_by\": null,\n        \"served_hot\": true,\n        \"packaging\": null\n      },\n      {\n        \"qty\": 1,\n        \"type\": \"SPECIALTY\",\n        \"recipient_name\": \"Dino Ebel\",\n        \"restrictions\": [\"Low Sodium\", \"no red meat\", \"dairy-free\"],\n        \"description\": \"plain unseasoned chicken or fish\",\n        \"delivery_time\": \"10:45 AM\",\n        \"delivered_by\": null,\n        \"served_hot\": false,\n        \"packaging\": \"togo box\"\n      },\n      {\n        \"qty\": 1,\n        \"type\": \"CONCIERGE\",\n        \"recipient_name\": null,\n        \"restrictions\": [],\n        \"description\": \"JAPANESE MEALS\",\n        \"delivery_time\": \"10:45 AM\",\n        \"delivered_by\": \"ABRAHAM\",\n        \"served_hot\": false,\n        \"packaging\": null\n      }\n    ]\n  }\n}"
+            },
+            {
+              "content": "=Extract the data from the following kitchen sheet and return ONLY the JSON object matching the strict schema:\n\n{{ $json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        -256
+      ],
+      "id": "03a504a3-0f03-4244-bbaf-331ce32caf32",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "FlXrdEEx6OYHjfXM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        176,
+        -256
+      ],
+      "id": "6a820851-56db-4239-8009-17f762dce015",
+      "name": "Download PDF file",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "mNW7XkkaMibw62NX",
+          "name": "Google Drive account"
+        }
+      },
+      "notes": "Download the Kitchen Sheet PDF"
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "13pRQO68XiheIrOepIOMun5ylByU3G6PEpp6wjsaNkGI",
+          "mode": "id"
+        },
+        "name": "={{ $node[\"Download PDF file\"].binary.data.fileName.replace(/\\.pdf$/i, '') }}",
+        "sameFolder": false,
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "10822eRE0ZsS2B_iN8nZX5tURHXRrB6us",
+          "mode": "id"
+        },
+        "options": {
+          "copyRequiresWriterPermission": false
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        976,
+        -256
+      ],
+      "id": "22c6293d-1f48-4d2f-b666-55731ccdac0b",
+      "name": "Copy KitchenSheet Template",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "retryOnFail": false,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "mNW7XkkaMibw62NX",
+          "name": "Google Drive account"
+        }
+      },
+      "notes": "Copy the google sheet template"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Utility for n8n Code node: parse an events[] JSON array and map each event to a KitchenSheet.\n// For AI nodes that output KitchenSheetPDF format, use parseKitchenSheetPDF.js instead.\n\n/**\n * Extracts and parses JSON from a string that may be wrapped in\n * ```json ... ``` code fences (as returned by some LLM tools).\n * Also handles raw JSON strings with no fences.\n *\n * @param {string} rawText - The raw text containing JSON, possibly fenced.\n * @returns {any} Parsed JSON object.\n */\nfunction parseJsonFromCodeFence(rawText) {\n  if (typeof rawText !== \"string\") {\n    throw new Error(\"Expected rawText to be a string\");\n  }\n\n  // Remove starting ```json or ``` (case-insensitive), plus any following whitespace/newlines\n  let cleaned = rawText.replace(/^```json\\s*/i, \"\").replace(/^```\\s*/i, \"\");\n\n  // Remove a trailing ``` if present (with optional whitespace before it)\n  cleaned = cleaned.replace(/\\s*```$/i, \"\").trim();\n\n  return JSON.parse(cleaned);\n}\n\n/**\n * Extracts dietary tags from a title that contains \"(gf+df)\" style annotations,\n * e.g. \"OREGANO ROASTED CHICKEN (gf+df)\" → name: \"OREGANO ROASTED CHICKEN\", dietaryTags: [\"gf\",\"df\"].\n * If the parenthetical content is not a dietary tag string it is left in the name.\n *\n * @param {string} title\n * @returns {{ name: string, dietaryTags: string[] }}\n */\nfunction extractDietaryTagsFromTitle(title) {\n  const match = (title || \"\").match(/^(.*?)\\s*\\(([^)]+)\\)\\s*$/);\n  if (match) {\n    const rawTags = match[2].trim();\n    if (/^[a-z]{1,4}(\\+[a-z]{1,4})*$/i.test(rawTags)) {\n      return {\n        name: match[1].trim(),\n        dietaryTags: rawTags\n          .split(\"+\")\n          .map((t) => t.trim().toLowerCase())\n          .filter(Boolean),\n      };\n    }\n  }\n  return { name: (title || \"\").trim(), dietaryTags: [] };\n}\n\n/**\n * Maps a single menu item from the sample.json / KitchenSheetPDF sections format to a MenuItem.\n *\n * Input shape:\n * { quantity: 185, title: \"OREGANO ROASTED CHICKEN (gf+df)\", ingredients: \"caramelized lemon, fresh oregano\" }\n *\n * @param {{ quantity: number, title: string, ingredients: string }} item\n * @returns {{ name: string, dietaryTags: string[], ingredients: string[], notes: null }}\n */\nfunction mapSampleItemToMenuItem(item) {\n  const { name, dietaryTags } = extractDietaryTagsFromTitle(item.title);\n  const raw = (item.ingredients || \"\").trim();\n  const ingredients = raw\n    ? raw.split(\",\").map((s) => s.trim()).filter(Boolean)\n    : [];\n  return { name, dietaryTags, ingredients, notes: null };\n}\n\n/**\n * Maps a single special meal object to camelCase.\n *\n * @param {object} meal\n * @returns {object}\n */\nfunction mapSpecialMeal(meal) {\n  return {\n    qty: meal.qty,\n    type: meal.type,\n    recipientName: meal.recipient_name ?? null,\n    restrictions: meal.restrictions || [],\n    description: meal.description ?? null,\n    deliveryTime: meal.delivery_time ?? null,\n    deliveredBy: meal.delivered_by ?? null,\n    servedHot: meal.served_hot ?? null,\n    packaging: meal.packaging ?? null,\n  };\n}\n\n/**\n * Maps a single event object (sample.json format) to a KitchenSheet.\n *\n * Input shape:\n * {\n *   updated_at:      \"2/18/2026 2:01 pm\",\n *   document_type:   \"KITCHEN SHEET\",\n *   event_name:      \"DODGERS MAJORS LUNCH\",\n *   event_date:      \"Sun, Mar 8, 2026\",\n *   account:         { account, account_manager, location, phone, booking_contact, booking_phone, site_contact, site_phone },\n *   catering_kitchen:{ date, setup_type, event_type, guests },\n *   operations:      { date, offsite_location, offsite_address, service_start_time, service_end_time, arrival_time, instructions },\n *   menu:            { date, service_start, service_end, lkb_time, sections: [{ qty, name, items: [{ quantity, title, ingredients }] }] },\n *   dietary_requirements: {\n *     portion_sizes: { protein, starch, vegetables },\n *     special_meals: [{ qty, type, recipient_name, restrictions, description, delivery_time, delivered_by, served_hot, packaging }]\n *   }\n * }\n *\n * @param {object} event\n * @returns {object} KitchenSheet-shaped camelCase object\n */\nfunction mapEventToKitchenSheet(event) {\n  const sections = (event.menu?.sections || []).map((section) => ({\n    qty: section.qty,\n    name: section.name,\n    items: (section.items || []).map(mapSampleItemToMenuItem),\n  }));\n\n  return {\n    updatedAt: event.updated_at || \"\",\n    documentType: event.document_type || \"KITCHEN SHEET\",\n    eventName: event.event_name || \"\",\n    eventDate: event.event_date || \"\",\n\n    account: {\n      account: event.account?.account ?? null,\n      accountManager: event.account?.account_manager ?? null,\n      location: event.account?.location ?? null,\n      phone: event.account?.phone ?? null,\n      bookingContact: event.account?.booking_contact ?? null,\n      bookingPhone: event.account?.booking_phone ?? null,\n      siteContact: event.account?.site_contact ?? null,\n      sitePhone: event.account?.site_phone ?? null,\n    },\n\n    cateringKitchen: {\n      date: event.catering_kitchen?.date || \"\",\n      setupType: event.catering_kitchen?.setup_type || \"\",\n      eventType: event.catering_kitchen?.event_type || \"\",\n      guests: event.catering_kitchen?.guests ?? 0,\n    },\n\n    operations: {\n      date: event.operations?.date || \"\",\n      offsiteLocation: event.operations?.offsite_location ?? null,\n      offsiteAddress: event.operations?.offsite_address ?? null,\n      serviceStartTime: event.operations?.service_start_time ?? null,\n      serviceEndTime: event.operations?.service_end_time ?? null,\n      arrivalTime: event.operations?.arrival_time ?? null,\n      instructions: event.operations?.instructions ?? null,\n    },\n\n    menu: {\n      date: event.menu?.date || \"\",\n      serviceStart: event.menu?.service_start ?? null,\n      serviceEnd: event.menu?.service_end ?? null,\n      lkbTime: event.menu?.lkb_time || \"\",\n      sections,\n    },\n\n    dietaryRequirements: {\n      portionSizes: {\n        protein: event.dietary_requirements?.portion_sizes?.protein ?? null,\n        starch: event.dietary_requirements?.portion_sizes?.starch ?? null,\n        vegetables: event.dietary_requirements?.portion_sizes?.vegetables ?? null,\n      },\n      specialMeals: (event.dietary_requirements?.special_meals || []).map(mapSpecialMeal),\n    },\n  };\n}\n\n/**\n * n8n Code node entry point.\n *\n * Reads JSON (raw or code-fenced) from:\n *   $input.first().json.output[0].content[0].text\n *\n * Expected LLM output shape — an array of events matching the sample.json format:\n * [\n *   {\n *     \"updated_at\": \"2/18/2026 2:01 pm\",\n *     \"document_type\": \"KITCHEN SHEET\",\n *     \"event_name\": \"DODGERS MAJORS LUNCH\",\n *     \"event_date\": \"Sun, Mar 8, 2026\",\n *     \"account\": { ... },\n *     \"catering_kitchen\": { \"date\", \"setup_type\", \"event_type\", \"guests\" },\n *     \"operations\": { ... },\n *     \"menu\": { \"date\", \"service_start\", \"service_end\", \"lkb_time\", \"sections\": [ ... ] },\n *     \"dietary_requirements\": { \"portion_sizes\": { ... }, \"special_meals\": [ ... ] }\n *   }\n * ]\n *\n * Returns one n8n item per event: { kitchenSheet: KitchenSheet }\n */\nfunction main() {\n  const inputJson = $(\"Message a model\").first().json;\n  const raw = inputJson.output[0].content[0].text;\n  const parsed = parseJsonFromCodeFence(raw);\n\n  const items = [{...parsed}].map((event) => ({\n    json: {\n      kitchenSheet: mapEventToKitchenSheet(event),\n    },\n  }));\n\n  return items.length ? items : [{ json: { kitchenSheet: null } }];\n}\n\n// In an n8n Code node you would typically just `return main();`\nreturn main();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -256
+      ],
+      "id": "7b86de76-8c41-4e24-b8a0-d26f7c0569fe",
+      "name": "ParsePDF2JSON",
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "notes": "Parse PDF data to KitchenSheet JSON data"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code node: builds a Google Sheets API valueRange payload.\n *\n * Reads menu.sections[] from the incoming KitchenSheet JSON and produces a\n * single output item containing the API URL and request body needed to append\n * all section rows to a Google Sheet using the Sheets API directly.\n *\n * Output shape:\n *   $json.url   — full Sheets API endpoint (used in the HTTP Request URL field)\n *   $json.body  — valueRange object        (used in the HTTP Request body field)\n *\n * Column mapping (positional, no header matching required):\n *   values[n][0]  →  column B  (QTY)\n *   values[n][1]  →  column C  (MENU ITEM)\n *\n * ═══════════════════════════════════════════════════════════════════════════\n *  HTTP REQUEST NODE CONFIGURATION\n * ═══════════════════════════════════════════════════════════════════════════\n *\n *  General\n *  ───────\n *  Method              POST\n *  URL                 ={{ $json.url }}\n *\n *  Authentication\n *  ──────────────\n *  Auth Type           OAuth2\n *  Credential          <your Google OAuth2 credential>\n *\n *  Query Parameters    (add both as separate entries)\n *  ────────────────\n *  Name                valueInputOption\n *  Value               USER_ENTERED\n *\n *  Name                insertDataOption\n *  Value               INSERT_ROWS\n *\n *  Body\n *  ────\n *  Body Content Type   JSON\n *  Specify Body        Using JSON\n *  JSON                ={{ JSON.stringify($json) }}\n *\n *  Notes\n *  ─────\n *  - USER_ENTERED lets Google Sheets interpret values (numbers stay numbers,\n *    dates parse, etc.). Use RAW to disable interpretation.\n *  - INSERT_ROWS pushes existing rows down instead of overwriting them.\n *  - The Sheets API appends after the last row that contains data, so rows\n *    1-4 (template headers) are preserved and data starts at row 5 naturally.\n * ═══════════════════════════════════════════════════════════════════════════\n */\n\nconst RANGE = \"TEMPLATE!B5\"; // starting cell; API appends after last row\n\nfunction main() {\n  const input = $input.first()?.json ?? {};\n\n  // Support both input shapes:\n  // - sample.json / parseEventsFromCodeFence: { menu: { sections: [...] } }\n  // - parseKitchenSheetPDF output:            { kitchenSheet: { menu: { sections: [...] } } }\n  const kitchenSheet = input.kitchenSheet ?? input;\n  const sections = kitchenSheet?.menu?.sections ?? [];\n\n  // Build a 2D values array — each inner array is one row, values are positional:\n  //   index 0 → column B (QTY)\n  //   index 1 → column C (MENU ITEM)\n  const values = [];\n  \n  sections.forEach((section) => {\n    let row = [section?.qty ?? \"\", section?.name ?? \"\"];\n    values.push(row);\n    \n    section.items.forEach((item) => {\n      values.push([\"\", item.name ?? \"\"]);\n      const ingredients = item.ingredients ?? [];\n      ingredients.forEach((ingredient) => {\n        values.push([\"\",\"- \" + (ingredient ?? \"\")]);\n      });\n    });\n   \n  });\n\n\n  return [\n    {\n      json: {\n        range: RANGE,\n        majorDimension: \"ROWS\",\n        values,\n      },\n    },\n  ];\n}\n\nreturn main();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        -256
+      ],
+      "id": "09614c30-0df6-46a5-b1b4-411e0b2f3eff",
+      "name": "Map to Sheet",
+      "alwaysOutputData": true,
+      "notesInFlow": true,
+      "notes": "KitchenSheet to Sheet Mapping JSON"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/{{ $('Copy KitchenSheet Template').item.json.id }}/values/{{ encodeURIComponent($json.range) }}:append",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "valueInputOption",
+              "value": "USER_ENTERED"
+            },
+            {
+              "name": "insertDataOption",
+              "value": "INSERT_ROWS"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1648,
+        -256
+      ],
+      "id": "fce8d47a-368b-4049-b432-341a0c849161",
+      "name": "HTTP Request",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "hnqOe6OXSJB5grTh",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download PDF file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Copy KitchenSheet Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ParsePDF2JSON": {
+      "main": [
+        [
+          {
+            "node": "Map to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map to Sheet": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy KitchenSheet Template": {
+      "main": [
+        [
+          {
+            "node": "ParsePDF2JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Manila",
+    "saveExecutionProgress": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "57764e1e-c382-4547-8c46-b33bd9fc9a54",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0bc3fbc3c7623e46a948a420f6faad6f937028b5a9fc5f4c816b29fa36a84847"
+  },
+  "id": "WATrY2t7ild2JucK",
+  "tags": []
+}
