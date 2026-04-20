@@ -6,9 +6,11 @@ This directory contains a Docker Compose setup for running n8n locally with Post
 
 1. **Environment file:**
    The `.env` file is already created with secure defaults. If you need to regenerate it:
+
    ```bash
    cp .env.example .env
    ```
+
    Then edit `.env` and set:
    - `POSTGRES_PASSWORD`: A strong password for PostgreSQL
    - `N8N_ENCRYPTION_KEY`: A long random string (at least 32 characters). Generate one with:
@@ -21,25 +23,30 @@ This directory contains a Docker Compose setup for running n8n locally with Post
    Make sure Docker Desktop is started and running on your Mac.
 
 3. **Start the services:**
+
    ```bash
    ./start.sh
    ```
+
    Or manually:
+
    ```bash
    docker compose up -d
    ```
 
-3. **Check service status:**
+4. **Check service status:**
+
    ```bash
    docker compose ps
    ```
 
-4. **View logs:**
+5. **View logs:**
+
    ```bash
    docker compose logs -f n8n
    ```
 
-5. **Access n8n UI:**
+6. **Access n8n UI:**
    Open http://localhost:5678 in your browser and log in with your basic auth credentials.
 
 ## Stopping Services
@@ -49,6 +56,7 @@ docker compose down
 ```
 
 To remove volumes (⚠️ **WARNING**: This deletes all data):
+
 ```bash
 docker compose down -v
 ```
@@ -66,7 +74,9 @@ docker compose down -v
 ## Troubleshooting
 
 ### Docker Credential Helper Error
+
 If you see an error like `error getting credentials`, this is a macOS keychain issue. Try:
+
 1. Restart Docker Desktop
 2. Or configure Docker to skip credential helpers for public registries:
    ```bash
@@ -75,12 +85,14 @@ If you see an error like `error getting credentials`, this is a macOS keychain i
    ```
 
 ### Services Won't Start
+
 - Ensure Docker Desktop is running: `docker info`
 - Check logs: `docker compose logs`
 - Verify `.env` file exists and has all required variables
 
 ## Security Notes
 
+- Secure keys (e.g., `N8N_ENCRYPTION_KEY`, passwords, auth credentials) are stored in your **LastPass**.
 - This setup is configured for **local development only**
 - For production, consider:
   - Using HTTPS/TLS (via reverse proxy)
