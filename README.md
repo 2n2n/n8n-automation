@@ -90,6 +90,82 @@ If you see an error like `error getting credentials`, this is a macOS keychain i
 - Check logs: `docker compose logs`
 - Verify `.env` file exists and has all required variables
 
+### Slack: Simple “send approval message” setup (n8n 2.16.1)
+
+This repo’s “human approval” flow uses a **simple Slack message + Wait (webhook resume)** pattern:
+
+- **Slack** posts an approval question into a channel with 2 links:
+  - Override: `...$execution.resumeUrl?decision=Override`
+  - Cancel: `...$execution.resumeUrl?decision=Cancel`
+- **Wait** pauses execution until one of those links is clicked
+- An **If** node checks `decision === "Override"` and (if true) deletes + re-copies the template
+
+**Workflow**
+
+- **workflow id**: `Tzn53YVSiK2wGIh7`
+- **approval channel id**: `C0AUV3DGWQK`
+
+#### 1) Create a Slack app + get the correct token
+
+You must use a **Bot User OAuth Token** (`xoxb-...`). Do **not** use an app-level token (`xapp-...`) for posting messages.
+
+In Slack:
+
+1. Go to Slack apps: `https://api.slack.com/apps`
+2. Select your app (or create one)
+3. Go to **OAuth & Permissions**
+4. Under **Bot Token Scopes**, add:
+   - `chat:write`
+   - `conversations:read` (or `channels:read`)
+   - Optional (only if you want to post to channels without inviting the bot): `chat:write.public`
+5. Click **Install to Workspace** (or **Reinstall**) so the scopes take effect
+6. Copy **Bot User OAuth Token** (starts with **`xoxb-`**)
+
+Then, in the target Slack channel (the one with id `C0AUV3DGWQK`), invite the app/bot to the channel:
+
+```text
+/invite @YourAppName
+# (or /invite @YourBotName — either works depending on how Slack shows it)
+```
+
+#### 2) Create the n8n credential (token-based)
+
+In n8n:
+
+1. Go to **Credentials**
+2. Create a **Slack** credential that accepts a token (often shown as “Slack API” / type `slackApi`)
+3. Paste the **`xoxb-...`** token
+4. Save
+
+Then open the workflow node `Notify Slack (Approval Needed)` and select that credential.
+
+#### 3) Configure the Slack node (simplest)
+
+In the Slack node:
+
+- **Resource**: Message
+- **Operation**: Send
+- **Channel ID**: `C0AUV3DGWQK`
+- **Text**: includes the two resume links built from `$execution.resumeUrl`
+
+#### Common errors we hit (and fixes)
+
+- **OAuth: `error=access_denied`**
+  - Meaning: the OAuth authorization was cancelled/denied on Slack’s side, or blocked by workspace policy.
+  - Fix: click “Allow”, ensure you’re in the correct workspace, or have an admin allow the app.
+
+- **OAuth: “problem generating the authorization URL” + HTTP `431`**
+  - Meaning: **request headers too large**, usually due to oversized cookies for the n8n domain (especially `localhost`).
+  - Fix: try Incognito, clear cookies/site data for your n8n URL, or try another browser. If behind a reverse proxy, increase header limits.
+
+- **Slack API: `not_allowed_token_type`**
+  - Meaning: you used a token Slack won’t accept for posting messages (commonly **`xapp-...`**).
+  - Fix: use a **bot token** (`xoxb-...`) with `chat:write`, reinstall the app after adding scopes.
+
+- **Slack API: `channel_not_found`**
+  - Meaning: the bot token can’t “see” the channel (wrong workspace, private channel, or bot not invited).
+  - Fix: invite the bot to the channel (`/invite @YourBotName`) and ensure the token/workspace matches the channel id.
+
 ## Security Notes
 
 - Secure keys (e.g., `N8N_ENCRYPTION_KEY`, passwords, auth credentials) are stored in your **LastPass**.
